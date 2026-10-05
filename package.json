@@ -1,0 +1,28 @@
+{
+  "name": "quadratic-calculator",
+  "productName": "Quadratic Calculator",
+  "version": "1.1.0",
+  "description": "Keypad calculator with a live y = ax² + bx + c grapher, packaged as a Windows desktop app",
+  "author": "Mayhur Mooni",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "dev.mayhur.quadratic-calculator",
+    "files": ["main.js", "src/**/*"],
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "shortcutName": "Quadratic Calculator"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  }
+}

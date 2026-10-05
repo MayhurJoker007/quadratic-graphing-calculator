@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quadratic Calculator</title>
+<style>*,*::before,*::after{box-sizing:border-box}html,body{margin:0}body{font-size:14px}</style>
+<style>
+/* Layout: two panels side by side (keypad | grapher), stacking on phones */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --fg:#1b2430; --muted:#5d6b7a; --line:#d5dce3;
+  --key:#e4e9ee; --accent:#1f6feb; --curve:#d9480f; --grid:#e6eaee;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace; --sans:"IBM Plex Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171d; --panel:#1a2129; --fg:#e4e9ee; --muted:#93a1b0; --line:#2c3642;
+  --key:#26303b; --accent:#5a9bff; --curve:#ff8a4c; --grid:#222b35; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171d; --panel:#1a2129; --fg:#e4e9ee; --muted:#93a1b0; --line:#2c3642;
+  --key:#26303b; --accent:#5a9bff; --curve:#ff8a4c; --grid:#222b35; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);padding:24px 16px}
+.wrap{max-width:980px;margin:0 auto;display:grid;grid-template-columns:320px 1fr;gap:20px}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.display{font-family:var(--mono);font-size:28px;text-align:right;padding:12px;background:var(--bg);border-radius:6px;overflow-x:auto;white-space:nowrap;min-height:1.4em}
+.expr{font-family:var(--mono);font-size:13px;color:var(--muted);text-align:right;min-height:1.2em;overflow-x:auto;white-space:nowrap}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+button{font:600 18px var(--mono);padding:14px 0;border:0;border-radius:6px;background:var(--key);color:var(--fg);cursor:pointer}
+button:hover{filter:brightness(.95)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.op{color:var(--accent)} button.eq{background:var(--accent);color:#fff}
+.coef{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:16px}
+.coef label{display:flex;align-items:center;gap:6px}
+.coef input{width:70px;font:16px var(--mono);padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.eqn{font-family:var(--mono);font-size:18px}
+canvas{width:100%;aspect-ratio:4/3;max-width:100%;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;font-size:14px}
+.facts div{background:var(--bg);border-radius:6px;padding:8px 10px}
+.facts b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.facts span{font-family:var(--mono);font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <section class="panel">
+    <h2>Calculator</h2>
+    <div class="expr" id="expr"></div>
+    <div class="display" id="display">0</div>
+    <div class="keys" id="keys"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Graph y = ax² + bx + c</h2>
+    <div class="coef">
+      <label>a <input id="a" type="number" step="any" value="1"></label>
+      <label>b <input id="b" type="number" step="any" value="-2"></label>
+      <label>c <input id="c" type="number" step="any" value="-3"></label>
+    </div>
+    <div class="eqn" id="eqn"></div>
+    <canvas id="cv" width="800" height="600"></canvas>
+    <div class="facts">
+      <div><b>Roots</b><span id="roots"></span></div>
+      <div><b>Vertex</b><span id="vertex"></span></div>
+      <div><b>Discriminant</b><span id="disc"></span></div>
+      <div><b>y-intercept</b><span id="yint"></span></div>
+    </div>
+  </section>
+</div>
+
+<script src="calc.js"></script>
+<script src="quadratic.js"></script>
+<script>
+// ---------- Calculator ----------
+const keys=["C","(",")","÷","7","8","9","×","4","5","6","−","1","2","3","+","0",".","^","="];
+const kEl=document.getElementById("keys"),dEl=document.getElementById("display"),xEl=document.getElementById("expr");
+let cur="";
+keys.forEach(k=>{const b=document.createElement("button");b.textContent=k;
+  if("÷×−+^()".includes(k))b.className="op"; if(k==="=")b.className="eq";
+  b.onclick=()=>press(k);kEl.appendChild(b)});
+function press(k){
+  if(k==="C"){cur="";xEl.textContent="";}
+  else if(k==="="){try{
+      const r=Calc.evaluate(cur);
+      xEl.textContent=cur+" =";cur=Calc.format(r);
+    }catch{xEl.textContent=cur;cur="Error";}}
+  else{if(cur==="Error")cur="";cur+=k;}
+  dEl.textContent=cur||"0";
+}
+document.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT")return;
+  const m={"/":"÷","*":"×","-":"−","Enter":"=","Escape":"C"}; let k=m[e.key]||e.key;
+  if(e.key==="Backspace"){cur=cur.slice(0,-1);dEl.textContent=cur||"0";return}
+  if(keys.includes(k)){e.preventDefault();press(k)}
+});
+
+// ---------- Quadratic grapher ----------
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d");
+const $=id=>document.getElementById(id);
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const r2=Quadratic.round;
+function draw(){
+  const a=+$("a").value||0,b=+$("b").value||0,c=+$("c").value||0;
+  const f=x=>a*x*x+b*x+c;
+  const q=Quadratic.analyse(a,b,c);
+  $("eqn").textContent=Quadratic.equation(a,b,c);
+  $("disc").textContent=r2(q.discriminant); $("yint").textContent="(0, "+r2(c)+")";
+  $("vertex").textContent=q.vertex?"("+r2(q.vertex.x)+", "+r2(q.vertex.y)+")":"none ("+q.kind+")";
+  $("roots").textContent=Quadratic.describeRoots(q);
+  const vx=q.vertex?q.vertex.x:0;
+
+  // View window centered on the vertex
+  const span=Math.max(10,Math.abs(vx)*2+4), x0=vx-span/2, x1=vx+span/2;
+  let ys=[];for(let i=0;i<=200;i++)ys.push(f(x0+(x1-x0)*i/200));
+  let y0=Math.min(0,...ys),y1=Math.max(0,...ys); if(y1-y0<1){y0-=1;y1+=1}
+  const pad=(y1-y0)*.08;y0-=pad;y1+=pad;
+  const W=cv.width,H=cv.height,X=x=>(x-x0)/(x1-x0)*W,Y=y=>H-(y-y0)/(y1-y0)*H;
+  ctx.fillStyle=css("--panel");ctx.fillRect(0,0,W,H);
+  const sx=Quadratic.niceStep(x1-x0),sy=Quadratic.niceStep(y1-y0);
+  ctx.font="18px "+css("--mono");ctx.lineWidth=1;
+  ctx.strokeStyle=css("--grid");ctx.fillStyle=css("--muted");
+  for(let x=Math.ceil(x0/sx)*sx;x<=x1;x+=sx){ctx.beginPath();ctx.moveTo(X(x),0);ctx.lineTo(X(x),H);ctx.stroke();
+    if(Math.abs(x)>1e-9)ctx.fillText(r2(x),X(x)+4,Math.min(H-6,Math.max(20,Y(0)+20)))}
+  for(let y=Math.ceil(y0/sy)*sy;y<=y1;y+=sy){ctx.beginPath();ctx.moveTo(0,Y(y));ctx.lineTo(W,Y(y));ctx.stroke();
+    if(Math.abs(y)>1e-9)ctx.fillText(r2(y),Math.min(W-60,Math.max(4,X(0)+6)),Y(y)-4)}
+  ctx.strokeStyle=css("--muted");ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,Y(0));ctx.lineTo(W,Y(0));ctx.moveTo(X(0),0);ctx.lineTo(X(0),H);ctx.stroke();
+  ctx.strokeStyle=css("--curve");ctx.lineWidth=4;ctx.beginPath();
+  for(let i=0;i<=400;i++){const x=x0+(x1-x0)*i/400;i?ctx.lineTo(X(x),Y(f(x))):ctx.moveTo(X(x),Y(f(x)))}
+  ctx.stroke();
+  const dot=(x,y)=>{ctx.beginPath();ctx.arc(X(x),Y(y),7,0,7);ctx.fill()};
+  ctx.fillStyle=css("--accent");
+  if(q.vertex)dot(q.vertex.x,q.vertex.y);
+  q.roots.forEach(x=>dot(x,0));
+}
+["a","b","c"].forEach(id=>$(id).addEventListener("input",draw));
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+draw();
+</script>
+
+</body>
+</html>
